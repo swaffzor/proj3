@@ -87,7 +87,8 @@ BYTE __SD_Send_Cmd(BYTE cmd, DWORD arg)
 {
     BYTE crc, res;
 
-	// ACMD«n» is the command sequense of CMD55-CMD«n»
+		PTB->PSOR = MASK(DBG_4);
+		// ACMD«n» is the command sequense of CMD55-CMD«n»
     if(cmd & 0x80) {
         cmd &= 0x7F;
         res = __SD_Send_Cmd(CMD55, 0);
@@ -121,10 +122,13 @@ BYTE __SD_Send_Cmd(BYTE cmd, DWORD arg)
     SPI_Timer_On(5);
     do {
         res = SPI_RW(0xFF);
+				PTB->PTOR = MASK(DBG_4);
     } while((res & 0x80)&&(SPI_Timer_Status()==TRUE));
+		PTB->PSOR = MASK(DBG_4);
     SPI_Timer_Off();
 		
     // Return with the response value
+		PTB->PCOR = MASK(DBG_4);
     return(res);
 }
 
@@ -192,6 +196,8 @@ SDRESULTS SD_Init(SD_DEV *dev)
     BYTE idx;
     BYTE init_trys;
 	
+		PTB->PSOR = MASK(DBG_5);
+		
     ct = 0;
     for(init_trys=0; ((init_trys!=SD_INIT_TRYS)&&(!ct)); init_trys++)
     {
@@ -207,13 +213,17 @@ SDRESULTS SD_Init(SD_DEV *dev)
 
         SPI_Timer_On(500);
         while(SPI_Timer_Status()==TRUE) {
+					PTB->PTOR = MASK(DBG_5);
 				}
+				PTB->PSOR = MASK(DBG_5);
         SPI_Timer_Off();
 
         dev->mount = FALSE;
         SPI_Timer_On(500);
         while ((__SD_Send_Cmd(CMD0, 0) != 1)&&(SPI_Timer_Status()==TRUE)) {
+					PTB->PTOR = MASK(DBG_5);
 				}
+				PTB->PSOR = MASK(DBG_5);
 	      SPI_Timer_Off();
         // Idle state
         if (__SD_Send_Cmd(CMD0, 0) == 1) {                      
@@ -228,7 +238,9 @@ SDRESULTS SD_Init(SD_DEV *dev)
                     // Wait for leaving idle state (ACMD41 with HCS bit)...
                     SPI_Timer_On(1000);
                     while ((SPI_Timer_Status()==TRUE)&&(__SD_Send_Cmd(ACMD41, 1UL << 30))) {
+											PTB->PTOR = MASK(DBG_5);
 										}
+										PTB->PSOR = MASK(DBG_5);
                     SPI_Timer_Off(); 
                     // CCS in the OCR? 
 										// AGD: Delete SPI_Timer_Status call?
@@ -255,7 +267,9 @@ SDRESULTS SD_Init(SD_DEV *dev)
                 // Wait for leaving idle state
                 SPI_Timer_On(250);
                 while((SPI_Timer_Status()==TRUE)&&(__SD_Send_Cmd(cmd, 0))) {
+									PTB->PTOR = MASK(DBG_5);
 								}
+								PTB->PSOR = MASK(DBG_5);
                 SPI_Timer_Off();
                 if(SPI_Timer_Status()==FALSE) 
 									ct = 0;
@@ -275,6 +289,7 @@ SDRESULTS SD_Init(SD_DEV *dev)
         __SD_Speed_Transfer(HIGH); // High speed transfer
     }
     SPI_Release();
+		PTB->PCOR = MASK(DBG_5);
     return (ct ? SD_OK : SD_NOINIT);
 }
 
@@ -283,7 +298,7 @@ SDRESULTS SD_Read(SD_DEV *dev, void *dat, DWORD sector, WORD ofs, WORD cnt)
     SDRESULTS res;
     BYTE tkn, data;
     WORD byte_num;
-		
+		PTB->PSOR = MASK(DBG_2);
     res = SD_ERROR;
     if ((sector > dev->last_sector)||(cnt == 0)) 
 			return(SD_PARERR);
@@ -292,7 +307,9 @@ SDRESULTS SD_Read(SD_DEV *dev, void *dat, DWORD sector, WORD ofs, WORD cnt)
         SPI_Timer_On(100);  // Wait for data packet (timeout of 100ms)
         do {
             tkn = SPI_RW(0xFF);
+						PTB->PTOR = MASK(DBG_2);
         } while((tkn==0xFF)&&(SPI_Timer_Status()==TRUE));
+				PTB->PSOR = MASK(DBG_2);
         SPI_Timer_Off();
         // Token of single block?
         if(tkn==0xFE) { 
@@ -304,12 +321,15 @@ SDRESULTS SD_Read(SD_DEV *dev, void *dat, DWORD sector, WORD ofs, WORD cnt)
                *(BYTE*)dat = data;
                ((BYTE *) dat)++;
 						} // else discard bytes before and after data
+						PTB->PTOR = MASK(DBG_2);
           } while(++byte_num < SD_BLK_SIZE + 2 ); // 512 byte block + 2 byte CRC
+					PTB->PSOR = MASK(DBG_2);
           res = SD_OK;
         }
     }
     SPI_Release();
     dev->debug.read++;
+		PTB->PCOR = MASK(DBG_2);
     return(res);
 }
 
@@ -318,8 +338,10 @@ SDRESULTS SD_Write(SD_DEV *dev, void *dat, DWORD sector)
     WORD idx;
     BYTE line;
 
+		PTB->PSOR = MASK(DBG_3);
 		// Query invalid?
     if(sector > dev->last_sector) {
+			PTB->PCOR = MASK(DBG_3);
 			return(SD_PARERR);
 		}
 
@@ -335,6 +357,7 @@ SDRESULTS SD_Write(SD_DEV *dev, void *dat, DWORD sector)
 			SPI_RW(0xFF);
 			// If not accepted, returns the reject error
 			if((SPI_RW(0xFF) & 0x1F) != 0x05) {
+				PTB->PCOR = MASK(DBG_3);
 				return(SD_REJECT);
 			}
 			
@@ -342,16 +365,22 @@ SDRESULTS SD_Write(SD_DEV *dev, void *dat, DWORD sector)
 			SPI_Timer_On(SD_IO_WRITE_TIMEOUT_WAIT);
 			do {
 					line = SPI_RW(0xFF);
+					PTB->PTOR = MASK(DBG_3);
 			} while((line==0)&&(SPI_Timer_Status()==TRUE));
 			SPI_Timer_Off();
 			dev->debug.write++;
 
-			if(line==0) 
+			if(line==0) {
+				PTB->PCOR = MASK(DBG_3);
 				return(SD_BUSY);
-			else 
+			}
+			else {
+				PTB->PCOR = MASK(DBG_3);
 				return(SD_OK);	
+			}
 		}
     else {
+			PTB->PCOR = MASK(DBG_3);
 			return(SD_ERROR);
 		}
 }

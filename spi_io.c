@@ -67,11 +67,17 @@ void SPI_Init (void) {
 }
 
 BYTE SPI_RW (BYTE d) {
-		while(!(SPI1_S & SPI_S_SPTEF_MASK))
-			;
+		PTB->PSOR = MASK(DBG_1);
+		while(!(SPI1_S & SPI_S_SPTEF_MASK)){
+			PTB->PTOR = MASK(DBG_1);
+		}
+		PTB->PSOR = MASK(DBG_1);
     SPI1_D = d;
-    while(!(SPI1_S & SPI_S_SPRF_MASK))
-			; 
+    while(!(SPI1_S & SPI_S_SPRF_MASK)){
+			PTB->PTOR = MASK(DBG_1);
+		}
+		PTB->PSOR = MASK(DBG_1);
+		PTB->PCOR = MASK(DBG_1);
     return((BYTE)(SPI1_D));
 }
 
