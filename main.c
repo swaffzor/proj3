@@ -4,12 +4,15 @@
 #include "sd_io.h"
 #include "LEDs.h"
 #include "debug.h"
+#include "cmsis_os2.h"
 
 SD_DEV dev[1];          // Create device descriptor
 uint8_t buffer[512];    // Example of your buffer data
 volatile uint32_t sum = 0;
 
-void SD_Manager(void) {
+osThreadId_t tid_SDmanager;	//thread ID
+
+void SD_Manager(void * arg) {
 	// On first run, init card and write test data to given block (sector_num) in flash. 
 	// Then repeatedly read the sector and confirm its contents
 	
@@ -48,7 +51,9 @@ void SD_Manager(void) {
 	
 	while (1) { // Repeat this loop forever, ten times per second
 		// Need to insert an osDelay call here 
-		
+		PTB->PCOR = MASK(DBG_7);
+		osDelay(500);
+		PTB->PSOR = MASK(DBG_7);
 		// erase buffer
 		for (i=0; i<SD_BLK_SIZE; i++)
 			buffer[i] = 0;
@@ -74,9 +79,15 @@ int main(void)
 	Init_Debug_Signals();
 	Init_RGB_LEDs();
 	Control_RGB_LEDs(1,1,0);	// Yellow - starting up
+	void * arg;
+	void * attr;
+	
+	osKernelInitialize();
+	osThreadNew(SD_Manager, arg, attr);		//create thread, returns the thread id number
+	osKernelStart();		//start multitasking
 	
  	// Test function to write a block and then read back, verify
-	SD_Manager();
+	//SD_Manager();
   
 	while (1)
 		;
