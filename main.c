@@ -10,6 +10,8 @@ SD_DEV dev[1];          // Create device descriptor
 uint8_t buffer[512];    // Example of your buffer data
 volatile uint32_t sum = 0;
 
+extern uint32_t g_idle_counter;
+
 osThreadId_t tid_SDmanager;	//thread ID
 
 void SD_Manager(void * arg) {
@@ -17,6 +19,7 @@ void SD_Manager(void * arg) {
 	// Then repeatedly read the sector and confirm its contents
 	
 	int i;
+	uint32_t idleDiff = 0;
 	DWORD sector_num = 0x23; // Manual wear leveling
   SDRESULTS res;
 	
@@ -35,30 +38,40 @@ void SD_Manager(void * arg) {
 	buffer[510] = 0xCA;
 	buffer[511] = 0xFE;
 
+	idleDiff = g_idle_counter;
   if(SD_Init(dev)!=SD_OK) {
 			Control_RGB_LEDs(1,0,0); // Red - init failed
 			while (1)
 				;
 	}
+	idleDiff = g_idle_counter - idleDiff;
+	
 	// Change the data in this sector
+	idleDiff = g_idle_counter;
 	res = SD_Write(dev, (void*)buffer, sector_num);
 	if(res!=SD_OK) {
 		Control_RGB_LEDs(1,0,1); // Magenta - write failed
 		while (1)
 			;
 	}
+	idleDiff = g_idle_counter - idleDiff;
+	
 	Control_RGB_LEDs(0,0,1);	// Blue - written ok
 	
 	while (1) { // Repeat this loop forever, ten times per second
 		// Need to insert an osDelay call here 
-		PTB->PCOR = MASK(DBG_7);
-		osDelay(500);
-		PTB->PSOR = MASK(DBG_7);
+		idleDiff = g_idle_counter;
+		osDelay(4000);
+		idleDiff = g_idle_counter - idleDiff;
+		
+		
 		// erase buffer
 		for (i=0; i<SD_BLK_SIZE; i++)
 			buffer[i] = 0;
 		// read block again
+		idleDiff = g_idle_counter;
 		res = SD_Read(dev, (void*)buffer, sector_num, 0, 512);
+		idleDiff = g_idle_counter - idleDiff;
 		
 		if(res==SD_OK) {
 			for (i = 0, sum = 0; i < SD_BLK_SIZE; i++)

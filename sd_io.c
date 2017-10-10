@@ -15,6 +15,8 @@
 #include "sd_io.h"
 #include <MKL25Z4.h>
 #include "debug.h"
+//#include "cmsis_os2.h"
+#include "cmsis_os2.h"                  // ARM::CMSIS:RTOS2:Keil RTX5
 
 /******************************************************************************
  Private Methods Prototypes - Direct work with SD card
@@ -195,6 +197,7 @@ SDRESULTS SD_Init(SD_DEV *dev)
     BYTE n, cmd, ct, ocr[4];
     BYTE idx;
     BYTE init_trys;
+	uint32_t temp;
 	
 		PTB->PSOR = MASK(DBG_5);
 		
@@ -211,12 +214,14 @@ SDRESULTS SD_Init(SD_DEV *dev)
         for(idx = 0; idx != 10; idx++) 
 					SPI_RW(0xFF);
 
-        SPI_Timer_On(500);
-        while(SPI_Timer_Status()==TRUE) {
-					PTB->PTOR = MASK(DBG_5);
-				}
+        //SPI_Timer_On(500);
+				temp = osKernelGetTickFreq();
+				osDelay(500);
+        //while(SPI_Timer_Status()==TRUE) {
+				//	PTB->PTOR = MASK(DBG_5);
+				//}
 				PTB->PSOR = MASK(DBG_5);
-        SPI_Timer_Off();
+        //SPI_Timer_Off();
 
         dev->mount = FALSE;
         SPI_Timer_On(500);
@@ -298,19 +303,21 @@ SDRESULTS SD_Read(SD_DEV *dev, void *dat, DWORD sector, WORD ofs, WORD cnt)
     SDRESULTS res;
     BYTE tkn, data;
     WORD byte_num;
+	
 		PTB->PSOR = MASK(DBG_2);
     res = SD_ERROR;
     if ((sector > dev->last_sector)||(cnt == 0)) 
 			return(SD_PARERR);
     // Convert sector number to byte address (sector * SD_BLK_SIZE)
     if (__SD_Send_Cmd(CMD17, sector * SD_BLK_SIZE) == 0) {
-        SPI_Timer_On(100);  // Wait for data packet (timeout of 100ms)
+        //SPI_Timer_On(100);  // Wait for data packet (timeout of 100ms)
+						osDelay(1);
         do {
             tkn = SPI_RW(0xFF);
 						PTB->PTOR = MASK(DBG_2);
-        } while((tkn==0xFF)&&(SPI_Timer_Status()==TRUE));
+        } while((tkn==0xFF));
 				PTB->PSOR = MASK(DBG_2);
-        SPI_Timer_Off();
+        //SPI_Timer_Off();
         // Token of single block?
         if(tkn==0xFE) { 
 					// AGD: Loop fusion to simplify FSM formation
@@ -362,12 +369,13 @@ SDRESULTS SD_Write(SD_DEV *dev, void *dat, DWORD sector)
 			}
 			
 			// Waits until finish of data programming with a timeout
-			SPI_Timer_On(SD_IO_WRITE_TIMEOUT_WAIT);
+			//SPI_Timer_On(SD_IO_WRITE_TIMEOUT_WAIT);
+					osDelay(1);
 			do {
 					line = SPI_RW(0xFF);
 					PTB->PTOR = MASK(DBG_3);
-			} while((line==0)&&(SPI_Timer_Status()==TRUE));
-			SPI_Timer_Off();
+			} while((line==0));
+			//SPI_Timer_Off();
 			dev->debug.write++;
 
 			if(line==0) {
