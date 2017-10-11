@@ -11,6 +11,10 @@
 #include "spi_io.h"
 #include <MKL25Z4.h>
 #include "debug.h"
+#include "cmsis_os2.h"                  // ARM::CMSIS:RTOS2:Keil RTX5
+#include "threads.h"
+
+uint8_t g_waiting_mode = 0;
 
 /******************************************************************************
  Module Public Functions - Low level SPI control functions
@@ -66,19 +70,42 @@ void SPI_Init (void) {
     SPI1_S = 0x00;
 }
 
+void SPI1_IRQHandler(){
+	
+	PTB->PSOR = MASK(DBG_ISR);
+	
+	
+	PTB->PCOR = MASK(DBG_ISR);
+}
+
 BYTE SPI_RW (BYTE d) {
+		BYTE theData;
+		MSG_T dest_msg;
+		osStatus_t result;
+	
 		PTB->PSOR = MASK(DBG_1);
 		while(!(SPI1_S & SPI_S_SPTEF_MASK)){
 			PTB->PTOR = MASK(DBG_1);
 		}
 		PTB->PSOR = MASK(DBG_1);
     SPI1_D = d;
-    while(!(SPI1_S & SPI_S_SPRF_MASK)){
-			PTB->PTOR = MASK(DBG_1);
+		
+		if(g_waiting_mode == 0){
+			while(!(SPI1_S & SPI_S_SPRF_MASK)){
+				PTB->PTOR = MASK(DBG_1);
+			}
+			PTB->PSOR = MASK(DBG_1);
+			theData = (BYTE)(SPI1_D);
 		}
-		PTB->PSOR = MASK(DBG_1);
+		else{
+			result = osMessageQueueGet(spiMsgQueueID, &dest_msg, NULL, osWaitForever);
+			if (result==osOK) {
+				theData = (BYTE)(SPI1_D);
+			}
+		}
+		
 		PTB->PCOR = MASK(DBG_1);
-    return((BYTE)(SPI1_D));
+    return(theData);
 }
 
 void SPI_Release (void) {
