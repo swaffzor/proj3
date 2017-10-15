@@ -14,7 +14,7 @@
 #include "cmsis_os2.h"                  // ARM::CMSIS:RTOS2:Keil RTX5
 #include "threads.h"
 
-uint8_t g_waiting_mode = 0;
+enum {BUSYWAIT, OSWAIT} g_waiting_mode = BUSYWAIT;
 
 /******************************************************************************
  Module Public Functions - Low level SPI control functions
@@ -70,12 +70,12 @@ void SPI_Init (void) {
     SPI1_S = 0x00;
 }
 
-void SPI1_IRQHandler(){
+void SPI1_IRQHandler(void){
 	
-	PTB->PSOR = MASK(DBG_ISR);
-	
-	
-	PTB->PCOR = MASK(DBG_ISR);
+	PTB->PTOR = MASK(DBG_ISR);
+	//SPI_S_SPRF SPI_C1_SPIE
+	//printf("test");
+	//PTB->PCOR = MASK(DBG_ISR);
 }
 
 BYTE SPI_RW (BYTE d) {
@@ -90,7 +90,7 @@ BYTE SPI_RW (BYTE d) {
 		PTB->PSOR = MASK(DBG_1);
     SPI1_D = d;
 		
-		if(g_waiting_mode == 0){
+		if(g_waiting_mode == BUSYWAIT){
 			while(!(SPI1_S & SPI_S_SPRF_MASK)){
 				PTB->PTOR = MASK(DBG_1);
 			}
@@ -123,10 +123,14 @@ inline void SPI_CS_High (void){
 
 inline void SPI_Freq_High (void) {
 		SPI1_BR = 0x01; 
+		SPI1_C1 &= ~SPI_C1_SPIE_MASK;
+		g_waiting_mode = BUSYWAIT;
 }	
 
 inline void SPI_Freq_Low (void) {
     SPI1_BR = 0x44; // 48MHz / 160 = 300kHz
+		SPI1_C1 |= SPI_C1_SPIE_MASK;
+		g_waiting_mode = OSWAIT;
 }
 
 void SPI_Timer_On (WORD ms) {

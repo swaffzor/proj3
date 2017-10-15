@@ -95,7 +95,7 @@ int main(void)
 	Init_Debug_Signals();
 	Init_RGB_LEDs();
 	Control_RGB_LEDs(1,1,0);	// Yellow - starting up
-	//initInterrupt();
+	initInterrupt();
 	
 	osKernelInitialize();
 	osThreadNew(SD_Manager, NULL, NULL);		//create thread, returns the thread id number
@@ -112,7 +112,7 @@ int main(void)
 void initInterrupt(void){
 	/* Configure PORT peripheral. Select GPIO and enable pull-up
 	resistors and interrupts on all edges for pins connected to switches */
-	//PORTD->PCR[SPI1_IRQn] = PORT_PCR_MUX(1)| PORT_PCR_PS_MASK | PORT_PCR_PE_MASK | PORT_PCR_IRQC(11);
+	//PORTE->PCR[SPI1_IRQn] = PORT_PCR_MUX(1)| PORT_PCR_PS_MASK | PORT_PCR_PE_MASK | PORT_PCR_IRQC(11);
 	
 	/* Configure NVIC */
 	NVIC_SetPriority(SPI1_IRQn, 2);
