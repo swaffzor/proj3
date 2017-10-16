@@ -5,6 +5,9 @@
 #include "LEDs.h"
 #include "debug.h"
 #include "cmsis_os2.h"
+#include "threads.h"
+
+void initInterrupt(void);
 
 SD_DEV dev[1];          // Create device descriptor
 uint8_t buffer[512];    // Example of your buffer data
@@ -20,7 +23,7 @@ void SD_Manager(void * arg) {
 	
 	int i;
 	uint32_t idleDiff = 0;
-	DWORD sector_num = 0x23; // Manual wear leveling
+	DWORD sector_num = 0x33; // Manual wear leveling
   SDRESULTS res;
 	
 	// Erase buffer
@@ -92,11 +95,11 @@ int main(void)
 	Init_Debug_Signals();
 	Init_RGB_LEDs();
 	Control_RGB_LEDs(1,1,0);	// Yellow - starting up
-	void * arg;
-	void * attr;
+	initInterrupt();
 	
 	osKernelInitialize();
-	osThreadNew(SD_Manager, arg, attr);		//create thread, returns the thread id number
+	tid_SDmanager = osThreadNew(SD_Manager, NULL, NULL);		//create thread, returns the thread id number
+	initRTOSobjects();
 	osKernelStart();		//start multitasking
 	
  	// Test function to write a block and then read back, verify
@@ -104,4 +107,18 @@ int main(void)
   
 	while (1)
 		;
+}
+
+void initInterrupt(void){
+	/* Configure PORT peripheral. Select GPIO and enable pull-up
+	resistors and interrupts on all edges for pins connected to switches */
+	//PORTE->PCR[SPI1_IRQn] = PORT_PCR_MUX(1)| PORT_PCR_PS_MASK | PORT_PCR_PE_MASK | PORT_PCR_IRQC(11);
+	
+	/* Configure NVIC */
+	NVIC_SetPriority(SPI1_IRQn, 2);
+	NVIC_ClearPendingIRQ(SPI1_IRQn);
+	NVIC_EnableIRQ(SPI1_IRQn);
+	
+	/* Optional: Configure PRIMASK in case interrupts were disabled. */
+	__enable_irq();
 }

@@ -15,7 +15,6 @@
 #include "sd_io.h"
 #include <MKL25Z4.h>
 #include "debug.h"
-//#include "cmsis_os2.h"
 #include "cmsis_os2.h"                  // ARM::CMSIS:RTOS2:Keil RTX5
 
 /******************************************************************************
@@ -205,6 +204,7 @@ SDRESULTS SD_Init(SD_DEV *dev)
     for(init_trys=0; ((init_trys!=SD_INIT_TRYS)&&(!ct)); init_trys++)
     {
         // Initialize SPI for use with the memory card
+				PTB->PSOR = MASK(DBG_5);
         SPI_Init();
 
         SPI_CS_High();
@@ -220,11 +220,10 @@ SDRESULTS SD_Init(SD_DEV *dev)
         //while(SPI_Timer_Status()==TRUE) {
 				//	PTB->PTOR = MASK(DBG_5);
 				//}
-				PTB->PSOR = MASK(DBG_5);
         //SPI_Timer_Off();
 
         dev->mount = FALSE;
-        SPI_Timer_On(500);
+        //SPI_Timer_On(500);
         while ((__SD_Send_Cmd(CMD0, 0) != 1)&&(SPI_Timer_Status()==TRUE)) {
 					PTB->PTOR = MASK(DBG_5);
 				}
@@ -344,7 +343,7 @@ SDRESULTS SD_Write(SD_DEV *dev, void *dat, DWORD sector)
 {
     WORD idx;
     BYTE line;
-
+		osStatus_t status;  
 		PTB->PSOR = MASK(DBG_3);
 		// Query invalid?
     if(sector > dev->last_sector) {
@@ -370,11 +369,11 @@ SDRESULTS SD_Write(SD_DEV *dev, void *dat, DWORD sector)
 			
 			// Waits until finish of data programming with a timeout
 			//SPI_Timer_On(SD_IO_WRITE_TIMEOUT_WAIT);
-					osDelay(1);
+			status = osDelay(1);//getting stuck here
 			do {
 					line = SPI_RW(0xFF);
 					PTB->PTOR = MASK(DBG_3);
-			} while((line==0));
+			} while(line==0);
 			//SPI_Timer_Off();
 			dev->debug.write++;
 
