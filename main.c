@@ -23,7 +23,7 @@ void SD_Manager(void * arg) {
 	
 	int i;
 	uint32_t idleDiff = 0;
-	DWORD sector_num = 0x23; // Manual wear leveling
+	DWORD sector_num = 0x33; // Manual wear leveling
   SDRESULTS res;
 	
 	// Erase buffer
@@ -98,7 +98,7 @@ int main(void)
 	initInterrupt();
 	
 	osKernelInitialize();
-	osThreadNew(SD_Manager, NULL, NULL);		//create thread, returns the thread id number
+	tid_SDmanager = osThreadNew(SD_Manager, NULL, NULL);		//create thread, returns the thread id number
 	initRTOSobjects();
 	osKernelStart();		//start multitasking
 	

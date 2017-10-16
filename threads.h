@@ -1,7 +1,7 @@
 #include "MKL25Z4.h"
 #include "cmsis_os2.h" 
 
-extern osMessageQueueId_t spiMsgQueueID;
+//static osMessageQueueId_t spiMsgQueueID;
 
 void initRTOSobjects(void);
 

@@ -13,7 +13,7 @@
 #include "debug.h"
 #include "cmsis_os2.h"                  // ARM::CMSIS:RTOS2:Keil RTX5
 #include "threads.h"
-
+extern osMessageQueueId_t spiMsgQueueID;
 enum {BUSYWAIT, OSWAIT} g_waiting_mode = BUSYWAIT;
 
 /******************************************************************************
@@ -71,11 +71,18 @@ void SPI_Init (void) {
 }
 
 void SPI1_IRQHandler(void){
+	MSG_T msg;
+	osStatus_t result;
 	
-	PTB->PTOR = MASK(DBG_ISR);
-	//SPI_S_SPRF SPI_C1_SPIE
-	//printf("test");
-	//PTB->PCOR = MASK(DBG_ISR);
+	PTB->PSOR = MASK(DBG_ISR);
+	
+	if(SPI1_S && SPI_S_SPRF_MASK){
+		msg.letter = SPI1_D;
+		result = osMessageQueuePut(spiMsgQueueID, &msg, NULL, 0);
+	}
+	
+	//SPI1_S &= ~SPI_S_SPRF_MASK;
+	PTB->PCOR = MASK(DBG_ISR);
 }
 
 BYTE SPI_RW (BYTE d) {
@@ -100,7 +107,7 @@ BYTE SPI_RW (BYTE d) {
 		else{
 			result = osMessageQueueGet(spiMsgQueueID, &dest_msg, NULL, osWaitForever);
 			if (result==osOK) {
-				theData = (BYTE)(SPI1_D);
+				theData = dest_msg.letter;
 			}
 		}
 		
